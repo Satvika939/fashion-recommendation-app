@@ -36,6 +36,21 @@ st.markdown(
         [data-testid="stSidebar"] { background: var(--ink); }
         [data-testid="stSidebar"] * { color: #f7fbfc; }
         [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color: #c9d7df; }
+        [data-testid="stSidebarCollapsedControl"] {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            background: #18324b !important;
+            border-radius: 0 8px 8px 0;
+            z-index: 1000;
+        }
+        [data-testid="stSidebarCollapsedControl"] button {
+            color: #ffffff !important;
+            background: #087f8c !important;
+            border: 0 !important;
+            min-width: 36px;
+            min-height: 36px;
+        }
         h1, h2, h3 { color: var(--ink); letter-spacing: 0; }
         h1 { font-weight: 750; }
         [data-testid="stFileUploader"] {
@@ -161,7 +176,7 @@ def render_image_gallery(image_urls, match_scores):
         .viewer {{ display: none; position: fixed; inset: 0; z-index: 10; padding: 24px;
             background: rgba(10, 23, 35, .88); align-items: center; justify-content: center; }}
         .viewer.open {{ display: flex; }}
-        .viewer img {{ width: min(78vw, 760px); height: min(78vh, 760px); object-fit: cover;
+        .viewer img {{ width: min(90vw, 1000px); height: min(88vh, 900px); object-fit: contain;
             border-radius: 8px; background: #ffffff; box-shadow: 0 14px 50px rgba(0, 0, 0, .35); }}
         .close {{ position: absolute; top: 14px; right: 20px; border: 0; background: transparent;
             color: #ffffff; font-size: 2rem; line-height: 1; cursor: pointer; }}
@@ -180,7 +195,8 @@ def render_image_gallery(image_urls, match_scores):
         function closeOnBackdrop(event) {{ if (event.target === viewer) closeViewer(); }}
         document.addEventListener('keydown', event => {{ if (event.key === 'Escape') closeViewer(); }});
     </script>'''
-    components.html(gallery_html, height=360 if len(image_urls) <= 5 else 360 * ((len(image_urls) + 4) // 5), scrolling=False)
+    gallery_height = max(720, 360 * ((len(image_urls) + 4) // 5))
+    components.html(gallery_html, height=gallery_height, scrolling=False)
 
 with st.sidebar:
     st.header('How to use')
