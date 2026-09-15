@@ -1,6 +1,8 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import os
 import uuid
+import html
 from PIL import Image
 import numpy as np
 import pickle
@@ -45,6 +47,18 @@ st.markdown(
             background: #eef7f7;
             border: 1px dashed #83bfc4;
         }
+        [data-testid="stFileUploader"] label,
+        [data-testid="stFileUploader"] small,
+        [data-testid="stFileUploader"] section,
+        [data-testid="stFileUploader"] section * {
+            color: var(--ink) !important;
+        }
+        [data-testid="stFileUploaderDropzone"] button {
+            color: #ffffff !important;
+            background: var(--teal) !important;
+            border-color: var(--teal) !important;
+        }
+        [data-testid="stFileUploaderDropzone"] svg { color: var(--teal) !important; }
         [data-testid="stImage"] {
             background: var(--panel);
             border: 1px solid var(--line);
@@ -119,6 +133,54 @@ def recommend(features, feature_list, result_count):
 
     return distances[0], indices[0]
 
+def render_image_gallery(image_urls, match_scores):
+    gallery_items = []
+    for image_url, match_score in zip(image_urls, match_scores):
+        safe_url = html.escape(str(image_url), quote=True)
+        gallery_items.append(
+            f'''<button class="gallery-item" type="button" onclick="openViewer(this)"
+                data-image="{safe_url}" aria-label="Open image showing a {match_score}% visual match">
+                <img src="{safe_url}" alt="{match_score}% visual match">
+                <span>{match_score}% visual match</span>
+            </button>'''
+        )
+
+    gallery_html = f'''
+    <style>
+        * {{ box-sizing: border-box; }}
+        body {{ margin: 0; font-family: sans-serif; background: transparent; }}
+        .gallery {{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }}
+        .gallery-item {{ min-width: 0; border: 1px solid #d9e2e8; border-radius: 8px;
+            padding: 6px; background: #ffffff; cursor: zoom-in; text-align: center; }}
+        .gallery-item:hover {{ border-color: #087f8c; box-shadow: 0 5px 16px rgba(24, 50, 75, .14); }}
+        .gallery-item img {{ display: block; width: 100%; aspect-ratio: 1 / 1;
+            object-fit: contain; border-radius: 5px; }}
+        .gallery-item span {{ display: block; padding: 8px 2px 4px; color: #087f8c;
+            font-size: 0.82rem; font-weight: 650; }}
+        .viewer {{ display: none; position: fixed; inset: 0; z-index: 10; padding: 24px;
+            background: rgba(10, 23, 35, .88); align-items: center; justify-content: center; }}
+        .viewer.open {{ display: flex; }}
+        .viewer img {{ max-width: 92vw; max-height: 88vh; object-fit: contain; border-radius: 8px;
+            background: #ffffff; box-shadow: 0 14px 50px rgba(0, 0, 0, .35); }}
+        .close {{ position: absolute; top: 14px; right: 20px; border: 0; background: transparent;
+            color: #ffffff; font-size: 2rem; line-height: 1; cursor: pointer; }}
+        @media (max-width: 800px) {{ .gallery {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }} }}
+    </style>
+    <div class="gallery">{''.join(gallery_items)}</div>
+    <div class="viewer" id="viewer" onclick="closeOnBackdrop(event)">
+        <button class="close" type="button" onclick="closeViewer()" aria-label="Close image">&times;</button>
+        <img id="large-image" alt="Enlarged recommendation">
+    </div>
+    <script>
+        const viewer = document.getElementById('viewer');
+        const largeImage = document.getElementById('large-image');
+        function openViewer(item) {{ largeImage.src = item.dataset.image; viewer.classList.add('open'); }}
+        function closeViewer() {{ viewer.classList.remove('open'); largeImage.src = ''; }}
+        function closeOnBackdrop(event) {{ if (event.target === viewer) closeViewer(); }}
+        document.addEventListener('keydown', event => {{ if (event.key === 'Escape') closeViewer(); }});
+    </script>'''
+    components.html(gallery_html, height=360 if len(image_urls) <= 5 else 360 * ((len(image_urls) + 4) // 5), scrolling=False)
+
 with st.sidebar:
     st.header('How to use')
     st.write('Upload a clear clothing or accessory photo to find similar items.')
@@ -154,15 +216,10 @@ if uploaded_file is not None:
             st.subheader(f'Similar Items ({len(indices)})')
             for row_start in range(0, len(indices), 5):
                 row_indices = indices[row_start:row_start + 5]
-                recommendation_columns = st.columns(5)
-                for offset, column in enumerate(recommendation_columns):
-                    with column:
-                        if offset < len(row_indices):
-                            position = row_start + offset
-                            match_score = max(0, min(100, round((1 - distances[position] / 2) * 100)))
-                            st.image(
-                                filenames[indices[position]],
-                                use_container_width=True,
-                                caption=f'{match_score}% visual match'
-                            )
+                row_urls = [filenames[index] for index in row_indices]
+                row_scores = [
+                    max(0, min(100, round((1 - distances[row_start + offset] / 2) * 100)))
+                    for offset in range(len(row_indices))
+                ]
+                render_image_gallery(row_urls, row_scores)
 
