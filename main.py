@@ -16,7 +16,8 @@ from numpy.linalg import norm
 st.set_page_config(
     page_title="Fashion Recommender",
     page_icon="👗",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 st.markdown(
@@ -160,8 +161,8 @@ def render_image_gallery(image_urls, match_scores):
         .viewer {{ display: none; position: fixed; inset: 0; z-index: 10; padding: 24px;
             background: rgba(10, 23, 35, .88); align-items: center; justify-content: center; }}
         .viewer.open {{ display: flex; }}
-        .viewer img {{ max-width: 92vw; max-height: 88vh; object-fit: contain; border-radius: 8px;
-            background: #ffffff; box-shadow: 0 14px 50px rgba(0, 0, 0, .35); }}
+        .viewer img {{ width: min(78vw, 760px); height: min(78vh, 760px); object-fit: cover;
+            border-radius: 8px; background: #ffffff; box-shadow: 0 14px 50px rgba(0, 0, 0, .35); }}
         .close {{ position: absolute; top: 14px; right: 20px; border: 0; background: transparent;
             color: #ffffff; font-size: 2rem; line-height: 1; cursor: pointer; }}
         @media (max-width: 800px) {{ .gallery {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }} }}
