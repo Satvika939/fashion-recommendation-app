@@ -62,18 +62,23 @@ def feature_extraction(img_path,model):
 
     return normalized_result
 
-def recommend(features,feature_list):
-    neighbors = NearestNeighbors(n_neighbors=min(6, len(feature_list)), algorithm='brute', metric='euclidean')
+def recommend(features, feature_list, result_count):
+    neighbors = NearestNeighbors(
+        n_neighbors=min(result_count, len(feature_list)),
+        algorithm='brute',
+        metric='euclidean'
+    )
     neighbors.fit(feature_list)
 
     distances, indices = neighbors.kneighbors([features])
 
-    return indices
+    return distances[0], indices[0]
 
 with st.sidebar:
     st.header('How to use')
     st.write('Upload a clear clothing or accessory photo to find similar items.')
     st.caption('Supported formats: JPG, JPEG, PNG, and WEBP')
+    result_count = st.slider('Number of results', min_value=1, max_value=20, value=5)
 
 uploaded_file = st.file_uploader(
     'Choose an image',
@@ -99,17 +104,19 @@ if uploaded_file is not None:
         else:
             with st.spinner('Finding similar fashion items...'):
                 features = feature_extraction(saved_path, model)
-                indices = recommend(features, feature_list)
+                distances, indices = recommend(features, feature_list, result_count)
 
-            st.subheader('Recommended Items')
-            recommendation_columns = st.columns(5)
-            for position, column in enumerate(recommendation_columns):
-                if position >= len(indices[0]):
-                    break
-                with column:
-                    st.image(
-                        filenames[indices[0][position]],
-                        use_container_width=True,
-                        caption=f'Recommendation {position + 1}'
-                    )
+            st.subheader(f'Similar Items ({len(indices)})')
+            for row_start in range(0, len(indices), 5):
+                row_indices = indices[row_start:row_start + 5]
+                recommendation_columns = st.columns(len(row_indices))
+                for offset, column in enumerate(recommendation_columns):
+                    position = row_start + offset
+                    with column:
+                        match_score = max(0, min(100, round((1 - distances[position] / 2) * 100)))
+                        st.image(
+                            filenames[indices[position]],
+                            use_container_width=True,
+                            caption=f'{match_score}% visual match'
+                        )
 
