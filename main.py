@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import uuid
 from PIL import Image
 import numpy as np
 import pickle
@@ -10,28 +11,46 @@ from tensorflow.keras.applications.resnet50 import ResNet50,preprocess_input
 from sklearn.neighbors import NearestNeighbors
 from numpy.linalg import norm
 
+st.set_page_config(
+    page_title="Fashion Recommender",
+    page_icon="👗",
+    layout="wide"
+)
+
 os.makedirs('uploads', exist_ok=True)
 
-feature_list = np.array(pickle.load(open('embeddings.pkl','rb')))
-filenames = pickle.load(open('filenames.pkl','rb'))
+@st.cache_data
+def load_recommendation_data():
+    with open('embeddings.pkl', 'rb') as embeddings_file:
+        feature_list = np.array(pickle.load(embeddings_file))
+    with open('filenames.pkl', 'rb') as filenames_file:
+        filenames = pickle.load(filenames_file)
+    return feature_list, filenames
 
-model = ResNet50(weights='imagenet',include_top=False,input_shape=(224,224,3))
-model.trainable = False
+@st.cache_resource
+def load_model():
+    base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+    base_model.trainable = False
+    return tensorflow.keras.Sequential([
+        base_model,
+        GlobalMaxPooling2D()
+    ])
 
-model = tensorflow.keras.Sequential([
-    model,
-    GlobalMaxPooling2D()
-])
+feature_list, filenames = load_recommendation_data()
+model = load_model()
 
-st.title('Fashion Recommender System')
+st.title('Fashion Recommender')
+st.write('Upload a clothing image and discover visually similar pieces from the collection.')
 
 def save_uploaded_file(uploaded_file):
     try:
-        with open(os.path.join('uploads',uploaded_file.name),'wb') as f:
-            f.write(uploaded_file.getbuffer())
-        return 1
-    except:
-        return 0
+        safe_name = f'{uuid.uuid4().hex}_{os.path.basename(uploaded_file.name)}'
+        file_path = os.path.join('uploads', safe_name)
+        with open(file_path, 'wb') as uploaded_image:
+            uploaded_image.write(uploaded_file.getbuffer())
+        return file_path
+    except OSError:
+        return None
 
 def feature_extraction(img_path,model):
     img = image.load_img(img_path, target_size=(224, 224))
@@ -44,39 +63,53 @@ def feature_extraction(img_path,model):
     return normalized_result
 
 def recommend(features,feature_list):
-    neighbors = NearestNeighbors(n_neighbors=6, algorithm='brute', metric='euclidean')
+    neighbors = NearestNeighbors(n_neighbors=min(6, len(feature_list)), algorithm='brute', metric='euclidean')
     neighbors.fit(feature_list)
 
     distances, indices = neighbors.kneighbors([features])
 
     return indices
 
-# steps
-# file upload -> save
-uploaded_file = st.file_uploader("Choose an image")
-if uploaded_file is not None:
-    if save_uploaded_file(uploaded_file):
-        # display the file
-        display_image = Image.open(uploaded_file)
-        st.image(display_image)
-        # feature extract
-        features = feature_extraction(os.path.join("uploads",uploaded_file.name),model)
-        #st.text(features)
-        # recommendention
-        indices = recommend(features,feature_list)
-        # show
-        col1,col2,col3,col4,col5 = st.columns(5)
+with st.sidebar:
+    st.header('How to use')
+    st.write('Upload a clear clothing or accessory photo to find similar items.')
+    st.caption('Supported formats: JPG, JPEG, PNG, and WEBP')
 
-        with col1:
-            st.image(filenames[indices[0][0]])
-        with col2:
-            st.image(filenames[indices[0][1]])
-        with col3:
-            st.image(filenames[indices[0][2]])
-        with col4:
-            st.image(filenames[indices[0][3]])
-        with col5:
-            st.image(filenames[indices[0][4]])
+uploaded_file = st.file_uploader(
+    'Choose an image',
+    type=['jpg', 'jpeg', 'png', 'webp'],
+    help='Upload one clothing image to receive recommendations.'
+)
+
+if uploaded_file is not None:
+    try:
+        display_image = Image.open(uploaded_file)
+        display_image.verify()
+        uploaded_file.seek(0)
+        display_image = Image.open(uploaded_file).convert('RGB')
+    except (OSError, ValueError):
+        st.error('Please upload a valid image file.')
     else:
-        st.header("Some error occured in file upload")
+        st.subheader('Your Image')
+        st.image(display_image, width=320)
+
+        saved_path = save_uploaded_file(uploaded_file)
+        if saved_path is None:
+            st.error('The image could not be saved. Please try again.')
+        else:
+            with st.spinner('Finding similar fashion items...'):
+                features = feature_extraction(saved_path, model)
+                indices = recommend(features, feature_list)
+
+            st.subheader('Recommended Items')
+            recommendation_columns = st.columns(5)
+            for position, column in enumerate(recommendation_columns):
+                if position >= len(indices[0]):
+                    break
+                with column:
+                    st.image(
+                        filenames[indices[0][position]],
+                        use_container_width=True,
+                        caption=f'Recommendation {position + 1}'
+                    )
 
