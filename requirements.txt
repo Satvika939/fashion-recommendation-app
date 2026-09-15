@@ -1,7 +1,7 @@
-streamlit
-tensorflow
-numpy
-pillow
-scikit-learn
-opencv-python
-tqdm
+streamlit==1.41.1
+tensorflow==2.15.1
+numpy==1.26.4
+pillow==10.4.0
+scikit-learn==1.5.2
+opencv-python-headless==4.10.0.84
+tqdm==4.67.1
