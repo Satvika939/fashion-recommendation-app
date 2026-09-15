@@ -17,6 +17,51 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown(
+    """
+    <style>
+        :root {
+            --ink: #18324b;
+            --canvas: #f4f7f8;
+            --panel: #ffffff;
+            --teal: #087f8c;
+            --coral: #d96c4f;
+            --line: #d9e2e8;
+        }
+        .stApp { background: var(--canvas); color: var(--ink); }
+        [data-testid="stHeader"] { background: rgba(244, 247, 248, 0.92); }
+        [data-testid="stSidebar"] { background: var(--ink); }
+        [data-testid="stSidebar"] * { color: #f7fbfc; }
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color: #c9d7df; }
+        h1, h2, h3 { color: var(--ink); letter-spacing: 0; }
+        h1 { font-weight: 750; }
+        [data-testid="stFileUploader"] {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 0.35rem;
+        }
+        [data-testid="stFileUploaderDropzone"] {
+            background: #eef7f7;
+            border: 1px dashed #83bfc4;
+        }
+        [data-testid="stImage"] {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0.35rem;
+        }
+        [data-testid="stImage"] img { aspect-ratio: 1 / 1; object-fit: contain; }
+        [data-testid="stImage"] + div { color: var(--teal); font-weight: 650; }
+        [data-testid="stSlider"] [data-baseweb="slider"] div[role="slider"] {
+            background: var(--coral);
+            border-color: var(--coral);
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 os.makedirs('uploads', exist_ok=True)
 
 @st.cache_data
@@ -109,14 +154,15 @@ if uploaded_file is not None:
             st.subheader(f'Similar Items ({len(indices)})')
             for row_start in range(0, len(indices), 5):
                 row_indices = indices[row_start:row_start + 5]
-                recommendation_columns = st.columns(len(row_indices))
+                recommendation_columns = st.columns(5)
                 for offset, column in enumerate(recommendation_columns):
-                    position = row_start + offset
                     with column:
-                        match_score = max(0, min(100, round((1 - distances[position] / 2) * 100)))
-                        st.image(
-                            filenames[indices[position]],
-                            use_container_width=True,
-                            caption=f'{match_score}% visual match'
-                        )
+                        if offset < len(row_indices):
+                            position = row_start + offset
+                            match_score = max(0, min(100, round((1 - distances[position] / 2) * 100)))
+                            st.image(
+                                filenames[indices[position]],
+                                use_container_width=True,
+                                caption=f'{match_score}% visual match'
+                            )
 
